@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logowanie</title>
+    <link rel="stylesheet" href="/login.css">
+</head>
+<body>
+    <div class="container">
+        <h2>Zaloguj się</h2>
+
+        <% if (typeof error !== 'undefined' && error) { %>
+            <div style="color: red; padding: 10px; border: 1px solid red; margin-bottom: 15px; border-radius: 4px; text-align: center;">
+                <%= error %>
+            </div>
+        <% } %>
+
+        <form action="/login" method="POST" id="loginForm">
+            <div class="form-group">
+                <label for="user_login">Nazwa użytkownika / Login:</label>
+                <input type="text" id="user_login" name="user" required> 
+            </div>
+            <div class="form-group">
+                <label for="password">Hasło:</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <button type="submit">Zaloguj</button>
+        </form>
+        
+        <div class="switch-link">
+            Nie masz konta? <a href="/register">Zarejestruj się</a>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('loginForm');
+            
+            form.addEventListener('submit', (event) => {
+                const userLogin = document.getElementById('user_login').value.trim();
+                const password = document.getElementById('password').value;
+
+                if (userLogin === '' || password === '') {
+                    event.preventDefault(); 
+                    
+                    alert('Proszę wypełnić wszystkie pola (Login i Hasło).'); 
+                    return false;
+                }
+            });
+        });
+    </script>
+</body>
+</html>

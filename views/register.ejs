@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rejestracja</title>
+    <link rel="stylesheet" href="/login.css">
+</head>
+<body>
+    <div class="container">
+        <h2>Zarejestruj się</h2>
+        
+        <% if (typeof error !== 'undefined' && error) { %>
+            <div style="color: red; padding: 10px; border: 1px solid red; margin-bottom: 15px; border-radius: 4px; text-align: center;">
+                <%= error %>
+            </div>
+        <% } %>
+
+        <form action="/register" method="POST">
+            
+            <div class="form-group">
+                <label for="user">Nazwa użytkownika (Login):</label>
+                <input type="text" id="user" name="user" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="name">Imię:</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="surname">Nazwisko:</label>
+                <input type="text" id="surname" name="surname" required>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Hasło:</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            
+            <button type="submit">Zarejestruj się</button>
+        </form>
+        
+        <div class="switch-link">
+            Masz już konto? <a href="/login">Zaloguj się</a>
+        </div>
+    </div>
+</body>
+</html>
