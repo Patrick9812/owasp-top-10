@@ -3,61 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Logowanie</title>
+    <title>Rejestracja</title>
     <link rel="stylesheet" href="/login.css">
     <script src="https://www.google.com/recaptcha/api.js?render=<%= publicKey %>"></script>
 </head>
 <body>
     <div class="container">
-        <h2>Zaloguj się</h2>
-
+        <h2>Zarejestruj się</h2>
+        
         <% if (typeof error !== 'undefined' && error) { %>
             <div style="color: red; padding: 10px; border: 1px solid red; margin-bottom: 15px; border-radius: 4px; text-align: center;">
                 <%= error %>
             </div>
         <% } %>
 
-        <form action="/login-secure" method="POST" id="loginForm">
+        <form id="register-form" action="/register-secure" method="POST">
+            
             <div class="form-group">
-                <label for="user_login">Nazwa użytkownika / Login:</label>
-                <input type="text" id="user_login" name="user" required> 
+                <label for="user">Nazwa użytkownika (Login):</label>
+                <input type="text" id="user" name="user" required>
             </div>
+            
+            <div class="form-group">
+                <label for="name">Imię:</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="surname">Nazwisko:</label>
+                <input type="text" id="surname" name="surname" required>
+            </div>
+
             <div class="form-group">
                 <label for="password">Hasło:</label>
                 <input type="password" id="password" name="password" required>
             </div>
             <input type="hidden" id="g-recaptcha-response" name="g-recaptcha-response">
-            <button type="submit">Zaloguj</button>
+            <button type="submit">Zarejestruj się</button>
         </form>
         
         <div class="switch-link">
-            Nie masz konta? <a href="/register-secure">Zarejestruj się</a>
+            Masz już konto? <a href="/login-secure">Zaloguj się</a>
         </div>
     </div>
-
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const form = document.getElementById('loginForm');
-            const submitButton = document.getElementById('submitButton');
-            const SITE_KEY = '<%= publicKey %>';
-
-            form.addEventListener('submit', (event) => {
+        document.getElementById('register-form').addEventListener('submit', function(event) {
             event.preventDefault();
-
-            const userLogin = document.getElementById('user_login').value.trim();
-            const password = document.getElementById('password').value;
-
-            if (userLogin === '' || password === '') {
-            alert('Proszę wypełnić wszystkie pola (Login i Hasło).'); 
-            return;
-            }
+            
+            const form = this;
+            const publicKey = '<%= publicKey %>';
 
             grecaptcha.ready(function() {
-                grecaptcha.execute(SITE_KEY, {action: 'login'}).then(function(token) {
+                grecaptcha.execute(publicKey, { action: 'register' }).then(function(token) {
                     document.getElementById('g-recaptcha-response').value = token;
                     form.submit();
                 });
-            });
             });
         });
     </script>
