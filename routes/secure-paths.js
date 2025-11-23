@@ -42,6 +42,23 @@ module.exports = ({ db, loginLimiter, saltRounds, fetch }) => {
         }
 
         try {
+            const checkUserSql = 'SELECT id FROM users_secure WHERE user = ?';
+
+            const existingUser = await new Promise((resolve, reject) => {
+                db.query(checkUserSql, [user], (err, results) => {
+                    if (err) return reject(err);
+                    resolve(results);
+                });
+            });
+            
+            if (existingUser.length > 0) {
+                console.warn(`[A07] Próba rejestracji istniejącego użytkownika: ${user}. IP: ${clientIp}`);
+                return res.render('register-secure.ejs', { 
+                    error: 'Podana nazwa użytkownika jest już zajęta.', 
+                    publicKey: publicKey
+                });
+            }
+
             const verificationUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${captchaResponse}&remoteip=${clientIp}`;
             
             const response = await fetch(verificationUrl, { method: 'POST' });

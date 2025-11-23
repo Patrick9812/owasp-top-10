@@ -15,10 +15,11 @@ module.exports = ({ dbUnsecure }) => {
         try {
             const sql = `
                 INSERT INTO users_unsecure (user, password, name, surname, role)
-                VALUES (?, ?, ?, ?, 'user')
+                VALUES ('${user}', '${password}', '${name}', '${surname}', 'user')
             `;
-            
-            dbUnsecure.query(sql, [user, password, name, surname], (err, result) => {
+
+            // Kod podatny na sql injection. Wpisać w nazwisku: Kowalski', 'user'); DROP TABLE users_unsecure; #
+            dbUnsecure.query(sql, (err, result) => {
                 if (err) {
                     console.error('Błąd zapisu rejestracji:', err);
                     return res.send('Błąd rejestracji.');

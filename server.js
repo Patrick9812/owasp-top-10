@@ -21,7 +21,8 @@ app.use(session({
     saveUninitialized: false,
     cookie: { 
         maxAge: 1000 * 60 * 60 * 24,
-        httpOnly: true
+        httpOnly: true,
+        secure: true
     } 
 }));
 
@@ -60,7 +61,8 @@ const dbUnsecure = mysql.createConnection({
     host: 'localhost',
     user: 'root',
     password: '',
-    database: 'owasp'
+    database: 'owasp',
+    multipleStatements: true
 });
 
 
