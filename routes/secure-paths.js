@@ -5,6 +5,7 @@ const { requireLogin } = require('../middleware/requireLogin.js');
 const { encrypt, decrypt } = require('../utils/encryption.js');
 const nodeFetch = require('node-fetch');
 const { registerSchema } = require('../schemas/registerSchema.js');
+const { changePasswordSchema } = require('../schemas/changePasswordSchema.js');
 const fetch = nodeFetch.default || nodeFetch;
 
 module.exports = ({ db, loginLimiter, saltRounds, fetch }) => {
@@ -218,6 +219,106 @@ module.exports = ({ db, loginLimiter, saltRounds, fetch }) => {
         } else {
             res.redirect('/login-secure');
         }
+    });
+
+    router.get('/change-password-secure', (req, res) => {
+            const loggedInId = req.session.userId;
+    
+            if (!loggedInId) {
+                return res.redirect('/login-secure');
+            }
+            res.render('change-password-secure.ejs', { userId: loggedInId, error: null, success: null });
+        });
+    
+    router.post('/change-password-secure', async (req, res) => {
+        const loggedInId = req.session.userId;
+        const clientIp = req.ip; 
+        const { current_password, new_password } = req.body;
+            
+        if (!loggedInId) {
+            return res.redirect('/login-secure');
+        }
+
+        const { error } = changePasswordSchema.validate(req.body);
+
+        if (error) {
+            const errorMessage = error.details[0].message;
+            console.warn(`[A09/A07] Walidacja Joi nieudana dla IP: ${clientIp}. Błąd: ${errorMessage}`);
+            
+            return res.render("change-password-secure.ejs", { 
+                error: errorMessage, 
+                publicKey: process.env.PUBLIC_RECAPTCHA_KEY
+            });
+        }
+    
+        const selectSql = 'SELECT password FROM users_unsecure WHERE id = ?';
+            
+        dbUnsecure.query(selectSql, [loggedInId], async (err, results) => {
+            if (err || results.length === 0) {
+                console.error('Błąd odczytu hasła do weryfikacji:', err);
+                return res.render('change-password-secure.ejs', { 
+                    userId: loggedInId, 
+                    error: 'Wystąpił błąd serwera. Spróbuj ponownie.', 
+                    success: null 
+                });
+            }
+    
+            const dbPasswordHash = results[0].password;
+    
+            try {
+                const isMatch = await bcrypt.compare(current_password, dbPasswordHash);
+    
+                if (!isMatch) {
+                    return res.render('change-password-secure.ejs', { 
+                        userId: loggedInId, 
+                        error: 'Nieprawidłowe aktualne hasło.', 
+                        success: null 
+                    });
+                }
+            } catch (bcryptError) {
+                console.error('Błąd podczas porównywania haseł (bcrypt):', bcryptError);
+                return res.render('change-password-secure.ejs', { 
+                    userId: loggedInId, 
+                    error: 'Błąd weryfikacji hasła.', 
+                    success: null 
+                });
+            }
+                
+            let newPasswordHash;
+            try {
+                const saltRounds = 10;
+                newPasswordHash = await bcrypt.hash(new_password, saltRounds);
+            } catch (hashError) {
+                console.error('Błąd hashowania nowego hasła:', hashError);
+                return res.render('change-password-secure.ejs', { 
+                    userId: loggedInId, 
+                    error: 'Błąd serwera podczas hashowania hasła.', 
+                    success: null 
+                });
+            }
+
+            const updateSql = 'UPDATE users_unsecure SET password = ? WHERE id = ?';
+            const params = [newPasswordHash, loggedInId];
+    
+            dbUnsecure.query(updateSql, params, (updateErr, result) => {
+                if (updateErr) {
+                    console.error('Błąd bezpiecznej aktualizacji hasła:', updateErr);
+                    return res.render('login-secure.ejs', { 
+                        userId: loggedInId, 
+                        error: 'Błąd aktualizacji hasła.', 
+                        success: null 
+                    });
+                }
+
+                req.session.destroy(err => {
+                    if (err) {
+                        console.error('Błąd wylogowania sesji:', err);
+                    }
+
+                    return res.redirect('/login-secure');
+                });
+            });
+        });
     });
 
     return router;

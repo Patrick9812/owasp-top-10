@@ -1,5 +1,7 @@
 const express = require('express');
-const bcrypt = require('bcrypt'); 
+const bcrypt = require('bcrypt');
+const axios = require('axios');
+const SWAPI_PEOPLE_URL = 'https://swapi.dev/api/people/';
 
 module.exports = ({ dbUnsecure }) => {
     const router = express.Router();
@@ -87,6 +89,110 @@ module.exports = ({ dbUnsecure }) => {
                 userId: loggedInId, 
                 requestedId: requestedId,
                 userData: userData
+            });
+        });
+    });
+
+    router.get('/star-wars/random-character/:id', async (req, res) => {
+        const requestedId = req.params.id; 
+        const loggedInId = req.session.userId;
+        let characterData
+
+        if (!loggedInId) {
+            return res.redirect('/login');
+        }
+
+        try {
+            const initialResponse = await axios.get(SWAPI_PEOPLE_URL);
+            const totalCharacters = initialResponse.data.count;
+            
+            if (totalCharacters === 0) {
+                return res.status(503).json({ message: 'Brak postaci w SWAPI.' });
+            }
+
+            const randomId = Math.floor(Math.random() * totalCharacters) + 1;
+            const characterResponse = await axios.get(`${SWAPI_PEOPLE_URL}${randomId}/`);
+
+            characterData = ({
+                random_id: randomId,
+                character: characterResponse.data
+            });
+
+        } catch (error) {
+            if (error.response && error.response.status === 404) {
+                 return res.status(503).json({ 
+                     message: 'Wylosowano pusty slot danych (404). Spróbuj ponownie.',
+                     hint: 'Ponieważ SWAPI ma luki w indeksowaniu, wylosowano ID, pod którym brakuje danych.'
+                 });
+            }
+            
+            console.error('Błąd podczas losowania postaci:', error.message);
+            return res.status(500).json({ 
+                status: 'Błąd serwera', 
+                message: 'Problem z połączeniem z SWAPI.' 
+            });
+        }
+        res.render("star-wars-character.ejs", {characterData, userId: loggedInId,})
+    });
+
+    router.get('/change-password', (req, res) => {
+        const userId = req.session.userId
+        console.log(userId)
+
+        if (!req.session.userId) {
+            return res.redirect(`/main-logged-page/${req.session.userId}`);
+        }
+        res.render('change-password.ejs', { userId });
+    });
+
+    router.post('/change-password', async (req, res) => {
+        const loggedInId = req.session.userId;
+        const { current_password, new_password } = req.body;
+        
+        if (!loggedInId) {
+            return res.redirect('/login');
+        }
+
+        const selectSql = 'SELECT password FROM users_unsecure WHERE id = ?';
+        
+        dbUnsecure.query(selectSql, [loggedInId], (err, results) => {
+            if (err || results.length === 0) {
+                console.error('Błąd odczytu hasła do weryfikacji:', err);
+                return res.render('change-password.ejs', { 
+                    userId: loggedInId, 
+                    error: 'Wystąpił błąd serwera. Spróbuj ponownie.', 
+                });
+            }
+
+            const dbPassword = results[0].password; 
+
+            if (current_password != dbPassword) {
+                return res.render('change-password.ejs', { 
+                    userId: loggedInId, 
+                    error: 'Nieprawidłowe aktualne hasło.', 
+                });
+            }
+
+            const updateSql = `
+                UPDATE users_unsecure 
+                SET password = '${new_password}' 
+                WHERE id = ${loggedInId}
+            `;
+            
+            dbUnsecure.query(updateSql, (err, result) => {
+                if (err) {
+                    console.error('Błąd aktualizacji hasła:', err);
+                    return res.render('change-password.ejs', { 
+                        userId: loggedInId, 
+                        error: 'Błąd aktualizacji hasła.', 
+                    });
+                }
+
+                res.render('change-password.ejs', { 
+                    userId: loggedInId, 
+                    error: null, 
+                    success: 'Hasło zostało pomyślnie zmienione (niezabezpieczone!).' 
+                });
             });
         });
     });

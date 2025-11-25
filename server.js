@@ -14,7 +14,7 @@ const app = express();
 
 const saltRounds = 10; 
 
-// A07:2021 Identification and Authentication Failures
+// A08:2021 Identification and Authentication Failures
 app.use(session({
     secret: process.env.SESSION_KEY, 
     resave: false,
@@ -22,7 +22,7 @@ app.use(session({
     cookie: { 
         maxAge: 1000 * 60 * 60 * 24,
         httpOnly: true,
-        secure: true
+        //secure: true // Apka działa na http, więc nie może tego być w celach demonstracyjnych
     } 
 }));
 
