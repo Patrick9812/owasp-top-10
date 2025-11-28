@@ -223,18 +223,18 @@ module.exports = ({ db, loginLimiter, saltRounds, fetch }) => {
 
     router.get('/change-password-secure', (req, res) => {
             const loggedInId = req.session.userId;
-    
+            console.log(loggedInId)
             if (!loggedInId) {
                 return res.redirect('/login-secure');
             }
-            res.render('change-password-secure.ejs', { userId: loggedInId, error: null, success: null });
+            res.render('change-password-secure.ejs', { userId: loggedInId });
         });
     
     router.post('/change-password-secure', async (req, res) => {
         const loggedInId = req.session.userId;
         const clientIp = req.ip; 
-        const { current_password, new_password } = req.body;
-            
+        const { currentPassword, newPassword, repeatNewPassword } = req.body;
+
         if (!loggedInId) {
             return res.redirect('/login-secure');
         }
@@ -251,9 +251,9 @@ module.exports = ({ db, loginLimiter, saltRounds, fetch }) => {
             });
         }
     
-        const selectSql = 'SELECT password FROM users_unsecure WHERE id = ?';
+        const selectSql = 'SELECT password FROM users_secure WHERE id = ?';
             
-        dbUnsecure.query(selectSql, [loggedInId], async (err, results) => {
+        db.query(selectSql, [loggedInId], async (err, results) => {
             if (err || results.length === 0) {
                 console.error('Błąd odczytu hasła do weryfikacji:', err);
                 return res.render('change-password-secure.ejs', { 
@@ -266,7 +266,7 @@ module.exports = ({ db, loginLimiter, saltRounds, fetch }) => {
             const dbPasswordHash = results[0].password;
     
             try {
-                const isMatch = await bcrypt.compare(current_password, dbPasswordHash);
+                const isMatch = await bcrypt.compare(currentPassword, dbPasswordHash);
     
                 if (!isMatch) {
                     return res.render('change-password-secure.ejs', { 
@@ -287,7 +287,7 @@ module.exports = ({ db, loginLimiter, saltRounds, fetch }) => {
             let newPasswordHash;
             try {
                 const saltRounds = 10;
-                newPasswordHash = await bcrypt.hash(new_password, saltRounds);
+                newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
             } catch (hashError) {
                 console.error('Błąd hashowania nowego hasła:', hashError);
                 return res.render('change-password-secure.ejs', { 
@@ -297,10 +297,10 @@ module.exports = ({ db, loginLimiter, saltRounds, fetch }) => {
                 });
             }
 
-            const updateSql = 'UPDATE users_unsecure SET password = ? WHERE id = ?';
+            const updateSql = 'UPDATE users_secure SET password = ? WHERE id = ?';
             const params = [newPasswordHash, loggedInId];
     
-            dbUnsecure.query(updateSql, params, (updateErr, result) => {
+            db.query(updateSql, params, (updateErr, result) => {
                 if (updateErr) {
                     console.error('Błąd bezpiecznej aktualizacji hasła:', updateErr);
                     return res.render('login-secure.ejs', { 
@@ -315,7 +315,7 @@ module.exports = ({ db, loginLimiter, saltRounds, fetch }) => {
                         console.error('Błąd wylogowania sesji:', err);
                     }
 
-                    return res.redirect('/login-secure');
+                    return res.redirect('/login-secure?success=Hasło_zostało_pomyślnie_zmienione._Zaloguj_się_ponownie.');
                 });
             });
         });
