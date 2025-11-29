@@ -8,7 +8,7 @@ const { registerSchema } = require('../schemas/registerSchema.js');
 const { changePasswordSchema } = require('../schemas/changePasswordSchema.js');
 const fetch = nodeFetch.default || nodeFetch;
 
-module.exports = ({ db, loginLimiter, saltRounds, fetch }) => {
+module.exports = ({ db, loginLimiter, saltRounds, fetch, safeFetchResource }) => {
     const router = express.Router();
 
     router.get('/register-secure', (req, res) => {
@@ -62,8 +62,10 @@ module.exports = ({ db, loginLimiter, saltRounds, fetch }) => {
 
             const verificationUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${captchaResponse}&remoteip=${clientIp}`;
             
-            const response = await fetch(verificationUrl, { method: 'POST' });
-            const data = await response.json();
+
+            // A10 Server-Side Request Forgery (SSRF)
+            const verificationBuffer = await safeFetchResource(verificationUrl, fetch);
+            const data = JSON.parse(verificationBuffer.toString());
 
             if (!data.success || data.score < MINIMUM_SCORE) {
                 console.warn(`[A07] Bot/niski wynik reCAPTCHA (${data.score}) dla rejestracji użytkownika: ${user}. IP: ${clientIp}`);
@@ -71,9 +73,13 @@ module.exports = ({ db, loginLimiter, saltRounds, fetch }) => {
             }
             
             console.info(`[A07] Rejestracja CAPTCHA V3 udana. Wynik: ${data.score}.`);
-
+        // A10 Server-Side Request Forgery (SSRF)
         } catch (e) {
-            console.error(`[A09] Błąd komunikacji z CAPTCHA API podczas rejestracji: ${e.message}`);
+            if (e.message && e.message.includes('[A10:2021 SSRF]')) {
+                console.error(`[A10:2021 SSRF BLOCKED] Użycie zablokowanej domeny/IP: ${e.message}`);
+                return res.status(403).render('register-secure.ejs', { error: 'Błąd zabezpieczeń (próba dostępu do nieautoryzowanego zasobu).', publicKey });
+            }
+            console.error(`[A09] Błąd komunikacji z CAPTCHA API: ${e.message}`);
             return res.status(500).render('register-secure.ejs', { error: 'Błąd serwera.', publicKey });
         }
         
@@ -115,7 +121,7 @@ module.exports = ({ db, loginLimiter, saltRounds, fetch }) => {
     router.post('/login-secure', loginLimiter, async (req, res) => {
         const { user, password } = req.body;
         const clientIp = req.ip; 
-        
+        const publicKey = process.env.PUBLIC_RECAPTCHA_KEY;
         const { error } = loginSchema.validate(req.body);
 
         if (error) {
@@ -136,9 +142,12 @@ module.exports = ({ db, loginLimiter, saltRounds, fetch }) => {
              return res.render('login-secure.ejs', { error: 'Błąd weryfikacji. Odśwież.', publicKey: process.env.PUBLIC_RECAPTCHA_KEY });
 
         try {
+            // A10 Server-Side Request Forgery (SSRF)
             const verificationUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${captchaResponse}&remoteip=${clientIp}`;
-            const response = await fetch(verificationUrl, { method: 'POST' });
-            const data = await response.json();
+            // Weryfikacja whitelisty adresów IP - symulacja (ochrona przed SSRF)
+            // const verificationUrl = `http://127.0.0.1`;
+            const verificationBuffer = await safeFetchResource(verificationUrl, fetch);
+            const data = JSON.parse(verificationBuffer.toString());
 
             if (!data.success || data.score < MINIMUM_SCORE) {
                 console.warn(`[A07] Bot/niski wynik (${data.score}) dla ${user}. IP: ${clientIp}`);
@@ -147,9 +156,14 @@ module.exports = ({ db, loginLimiter, saltRounds, fetch }) => {
             
             console.info(`[A07] CAPTCHA V3 udana. Wynik: ${data.score}.`);
 
+        // A10 Server-Side Request Forgery (SSRF)
         } catch (e) {
+            if (e.message && e.message.includes('[A10:2021 SSRF]')) {
+                console.error(`[A10:2021 SSRF BLOCKED] Użycie zablokowanej domeny/IP: ${e.message}`);
+                return res.status(403).render('register-secure.ejs', { error: 'Błąd zabezpieczeń (próba dostępu do nieautoryzowanego zasobu).', publicKey });
+            }
             console.error(`[A09] Błąd komunikacji z CAPTCHA API: ${e.message}`);
-            return res.status(500).render('login-secure.ejs', { error: 'Błąd serwera.', publicKey: process.env.PUBLIC_RECAPTCHA_KEY });
+            return res.status(500).render('register-secure.ejs', { error: 'Błąd serwera.', publicKey });
         }
 
         const sql = 'SELECT id, user, password FROM users_secure WHERE user = ?';

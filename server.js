@@ -1,6 +1,6 @@
 const express = require('express');
 const dotenv = require('dotenv');
-dotenv.config();
+dotenv.config({ quiet: true });
 const mysql = require('mysql2');
 const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt');
@@ -11,6 +11,8 @@ const fetch = nodeFetch.default || nodeFetch;
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const app = express();
+
+const { safeFetchResource } = require("./middleware/ssrf-protector.js")
 
 const saltRounds = 10; 
 
@@ -132,7 +134,7 @@ dbUnsecure.connect(err => {
 const secureRoutes = require('./routes/secure-paths');
 const unsecureRoutes = require('./routes/unsecure-paths');
 
-app.use('/', secureRoutes({ db, loginLimiter, saltRounds, fetch }));
+app.use('/', secureRoutes({ db, loginLimiter, saltRounds, fetch, safeFetchResource }));
 app.use('/', unsecureRoutes({ dbUnsecure, saltRounds }));
 
 app.get('/', (req, res) => {
