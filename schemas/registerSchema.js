@@ -2,14 +2,14 @@ const Joi = require('joi');
 
 const registerSchema = Joi.object({
     user: Joi.string()
-        .min(6)
+        .min(8)
         .max(25)
         .pattern(/[a-zA-Z]/)
         .pattern(/[0-9]/) 
         .required()
         .messages({
             'any.required': 'Nazwa użytkownika (login) jest wymagana.',
-            'string.min': 'Login musi mieć minimum 6 znaków.',
+            'string.min': 'Login musi mieć minimum 8 znaków.',
             'string.pattern.base': 'Login musi zawierać zarówno litery, jak i cyfry.',
             'string.max': 'Login musi mieć maximum 25 znaków.',
         }),
