@@ -40,7 +40,8 @@ const loginLimiter = rateLimit({
     },
 });
 
-app.use(morgan('dev'));
+// app.use(morgan('dev'));
+app.use(morgan());
 
 app.set('view engine', 'ejs');
 app.set('views', './views');

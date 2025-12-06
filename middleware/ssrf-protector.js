@@ -15,6 +15,8 @@ const ALLOWED_HOSTS = new Set([
     'google.com', 
     'www.recaptcha.net', 
     'recaptcha.net',
+    'www.swapi.dev',
+    'swapi.dev',
 ]);
 
 

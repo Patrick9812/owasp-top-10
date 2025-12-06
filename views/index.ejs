@@ -8,29 +8,8 @@
 </head>
 <body>
     <div class="container">
-        <h2>Zaloguj się</h2>
-
-        <% if (typeof error !== 'undefined' && error) { %>
-            <div style="color: red; padding: 10px; border: 1px solid red; margin-bottom: 15px; border-radius: 4px; text-align: center;">
-                <%= error %>
-            </div>
-        <% } %>
-
-        <form action="/login" method="POST">
-            <div class="form-group">
-                <label for="username_email">Nazwa użytkownika / E-mail:</label>
-                <input type="text" id="username_email" name="username_email" required>
-            </div>
-            <div class="form-group">
-                <label for="password">Hasło:</label>
-                <input type="password" id="password" name="password" required>
-            </div>
-            <button type="submit">Zaloguj</button>
-        </form>
-        
-        <div class="switch-link">
-            Nie masz konta? <a href="/register">Zarejestruj się</a>
-        </div>
+        <p><a style="padding-bottom: 20px;" href="login-secure">Wersja bezpieczna aplikacji</a></p>
+        <p><a href="login">Wersja niebezpieczna aplikacji</a></p>
     </div>
 </body>
 </html>

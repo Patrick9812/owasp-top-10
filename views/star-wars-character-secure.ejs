@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="/main-logged-page.css">
+</head>
+<body>
+    <%- include('_header') %>
+    <div class="main-container">
+        <p>Nazwa postaci: <%= characterData.character.name %></p>
+        <p>Wzrost: <%= characterData.character.height === 'unknown' ? 'Nieznany' : characterData.character.height + ' cm' %></p>
+        <p>Waga: <%= characterData.character.mass === 'unknown' ? 'Nieznana' : characterData.character.mass + ' kg' %></p>
+    </div>
+</body>
+</html>

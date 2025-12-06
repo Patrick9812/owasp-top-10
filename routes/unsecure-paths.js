@@ -26,7 +26,7 @@ module.exports = ({ dbUnsecure }) => {
                     console.error('Błąd zapisu rejestracji:', err);
                     return res.send('Błąd rejestracji.');
                 }
-                res.redirect("/");
+                res.redirect("/login");
             });
 
         } catch (error) {
@@ -69,18 +69,11 @@ module.exports = ({ dbUnsecure }) => {
         const requestedId = req.params.id; 
         const loggedInId = req.session.userId;
 
-        if (!loggedInId) {
-            return res.redirect('/login');
-        }
-
         const sql = 'SELECT id, user, name, surname, role FROM users_unsecure WHERE id = ?';
 
         dbUnsecure.query(sql, [requestedId], (err, results) => {
             if (err || results.length === 0) {
-                return res.status(404).render('error.ejs', { 
-                    message: `Nie znaleziono użytkownika o ID: ${requestedId}`,
-                    userId: loggedInId
-                });
+                
             }
 
             const userData = results[0];
@@ -97,10 +90,6 @@ module.exports = ({ dbUnsecure }) => {
         const requestedId = req.params.id; 
         const loggedInId = req.session.userId;
         let characterData
-
-        if (!loggedInId) {
-            return res.redirect('/login');
-        }
 
         try {
             const initialResponse = await axios.get(SWAPI_PEOPLE_URL);
@@ -137,11 +126,7 @@ module.exports = ({ dbUnsecure }) => {
 
     router.get('/change-password', (req, res) => {
         const userId = req.session.userId
-        console.log(userId)
 
-        if (!req.session.userId) {
-            return res.redirect(`/main-logged-page/${req.session.userId}`);
-        }
         res.render('change-password.ejs', { userId });
     });
 

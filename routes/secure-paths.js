@@ -6,7 +6,8 @@ const { encrypt, decrypt } = require('../utils/encryption.js');
 const nodeFetch = require('node-fetch');
 const { registerSchema } = require('../schemas/registerSchema.js');
 const { changePasswordSchema } = require('../schemas/changePasswordSchema.js');
-const fetch = nodeFetch.default || nodeFetch;
+const axios = require('axios');
+const SWAPI_PEOPLE_URL = process.env.SWAPI_API_ADRESS;
 
 module.exports = ({ db, loginLimiter, saltRounds, fetch, safeFetchResource }) => {
     const router = express.Router();
@@ -193,6 +194,7 @@ module.exports = ({ db, loginLimiter, saltRounds, fetch, safeFetchResource }) =>
         const userIdFromSession = req.session.userId;
         const userIdFromUrl = parseInt(req.params.id); 
 
+        // A04 Insecure design
         if (userIdFromSession !== userIdFromUrl) {
             return res.status(403).send('Zabezpieczenie Broken Access Control');
         }
@@ -237,12 +239,69 @@ module.exports = ({ db, loginLimiter, saltRounds, fetch, safeFetchResource }) =>
 
     router.get('/change-password-secure', (req, res) => {
             const loggedInId = req.session.userId;
-            console.log(loggedInId)
-            if (!loggedInId) {
-                return res.redirect('/login-secure');
+        if (!loggedInId) {
+            return res.redirect('/login-secure');
+        }
+        res.render('change-password-secure.ejs', { userId: loggedInId });
+    });
+
+
+    router.get('/star-wars/random-character-secure/:id', async (req, res) => {
+        const requestedId = req.params.id; 
+        const loggedInId = req.session.userId;
+        let characterData;
+
+        try {
+            // 1. POBIERANIE DANYCH WEJŚCIOWYCH Z OCHRONĄ SSRF (A10)
+            // Użycie safeFetchResource wymusza sprawdzenie white-listy i IP.
+            const initialResponseBuffer = await safeFetchResource(SWAPI_PEOPLE_URL, fetch);
+            const initialResponse = JSON.parse(initialResponseBuffer.toString());
+            const totalCharacters = initialResponse.count;
+            
+            if (totalCharacters === 0) {
+                return res.status(503).json({ message: 'Brak postaci w SWAPI.' });
             }
-            res.render('change-password-secure.ejs', { userId: loggedInId });
-        });
+
+            const randomId = Math.floor(Math.random() * totalCharacters) + 1;
+            const characterUrl = `${SWAPI_PEOPLE_URL}${randomId}/`;
+            
+            // 2. POBIERANIE POSTACI Z OCHRONĄ SSRF (A10)
+            const characterResponseBuffer = await safeFetchResource(characterUrl, fetch);
+            const characterResponse = JSON.parse(characterResponseBuffer.toString());
+
+            characterData = ({
+                random_id: randomId,
+                character: characterResponse
+            });
+
+        } catch (error) {
+            if (error.message && error.message.includes('[A10:2021 SSRF]')) {
+                console.error(`[A10:2021 SSRF BLOCKED] Użycie zablokowanej domeny/IP: ${error.message}`);
+                return res.status(403).json({ 
+                    status: 'Błąd zabezpieczeń (SSRF)', 
+                    message: 'Próba dostępu do nieautoryzowanego zasobu. Adres URL API został zablokowany przez whitelistę/blacklistę IP.',
+                    hint: error.message
+                });
+            }
+            
+            // Obsługa błędu 404/połączenia
+            if (error.message.includes('404')) {
+                return res.status(503).json({ 
+                    message: 'Wylosowano pusty slot danych (404). Spróbuj ponownie.',
+                    hint: 'Brak danych pod wylosowanym ID.'
+                });
+            }
+            
+            console.error('Błąd podczas losowania postaci (bez SSRF):', error.message);
+            return res.status(500).json({ 
+                status: 'Błąd serwera', 
+                message: 'Problem z połączeniem z SWAPI.' 
+            });
+        }
+        res.render("star-wars-character-secure.ejs", {characterData, userId: loggedInId,})
+    });
+
+
     
     router.post('/change-password-secure', async (req, res) => {
         const loggedInId = req.session.userId;

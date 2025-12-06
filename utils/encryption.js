@@ -1,39 +1,68 @@
 const crypto = require('crypto');
-const usedAlgorithm = 'aes-256-cbc';
 
-const encryptionKeyRaw = process.env.ENCRYPTION_KEY ? process.env.ENCRYPTION_KEY.trim() : undefined;
-const IVRaw = process.env.ENCRYPTION_IV ? process.env.ENCRYPTION_IV.trim() : undefined;
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY; 
+const ALGORITHM = 'aes-256-gcm'; 
+const IV_LENGTH = 16;
+const AUTH_TAG_LENGTH = 16;
 
-const encryptionKey = encryptionKeyRaw ? encryptionKeyRaw.replace(/["']/g, '') : undefined; 
-const IV = IVRaw ? IVRaw.replace(/["']/g, '') : undefined; 
+if (!ENCRYPTION_KEY) {
+    throw new Error("Błąd konfiguracji: Wymagana zmienna środowiskowa ENCRYPTION_KEY.");
+}
 
-const KEY_BUFFER = encryptionKey ? Buffer.from(encryptionKey.substring(0, 32), 'utf8') : undefined; 
-const IV_BUFFER = IV ? Buffer.from(IV.substring(0, 16), 'utf8') : undefined; 
+const KEY_BUFFER = Buffer.from(ENCRYPTION_KEY.trim().substring(0, 32), 'hex');
 
 const encrypt = (text) => {
     try {
-        const cipher = crypto.createCipheriv(usedAlgorithm, KEY_BUFFER, IV_BUFFER);
+        if (!text) return '';
+        
+        const iv = crypto.randomBytes(IV_LENGTH); 
+        const cipher = crypto.createCipheriv(ALGORITHM, KEY_BUFFER, iv);
+
         let encrypted = cipher.update(text.toString(), 'utf8', 'hex');
         encrypted += cipher.final('hex');
-        return encrypted;
+        
+        const authTag = cipher.getAuthTag();
+
+        return iv.toString('hex') + ':' + encrypted + ':' + authTag.toString('hex');
     } catch (e) {
-        console.error("Błąd podczas szyfrowania:", e.message); 
+        console.error("Błąd podczas szyfrowania GCM:", e.message); 
         return null; 
     }
 };
 
+// A8 Software and Data Integrity Failures
 const decrypt = (encryptedText) => {
     if (!encryptedText || typeof encryptedText !== 'string' || encryptedText.length === 0) {
         return '';
     }
+    
+    const parts = encryptedText.split(':');
+    
+    if (parts.length !== 3) {
+        console.error("Błąd integralności (A08): Nieprawidłowy format zaszyfrowanych danych.");
+        throw new Error('Błąd integralności danych: format niepoprawny.');
+    }
+    
+    const iv = Buffer.from(parts[0], 'hex');
+    const encrypted = parts[1];
+    const authTag = Buffer.from(parts[2], 'hex');
+
+    if (iv.length !== IV_LENGTH || authTag.length !== AUTH_TAG_LENGTH) {
+        console.error("Błąd integralności (A08): Nieprawidłowa długość IV/Tag.");
+        throw new Error('Błąd integralności danych: nieprawidłowa długość.');
+    }
+
     try {
-        const decipher = crypto.createDecipheriv(usedAlgorithm, KEY_BUFFER, IV_BUFFER);
-        let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
+        const decipher = crypto.createDecipheriv(ALGORITHM, KEY_BUFFER, iv);
+        decipher.setAuthTag(authTag);
+        
+        let decrypted = decipher.update(encrypted, 'hex', 'utf8');
         decrypted += decipher.final('utf8');
+        
         return decrypted;
     } catch (e) {
-        console.error("Błąd podczas deszyfrowania:", e.message);
-        return 'Błąd deszyfrowania';
+        console.error("Błąd weryfikacji integralności danych (A08):", e.message);
+        throw new Error('Naruszenie integralności (A08): Dane zostały zmienione.');
     }
 };
 

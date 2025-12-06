@@ -47,7 +47,7 @@ const registerSchema = Joi.object({
             'any.required': 'Nazwisko jest wymagane.',
             'string.min': 'Nazwisko musi mieć minimum 3 znaki.',
             'string.pattern.base': 'Nazwisko może zawierać tylko litery.',
-            'string.max': 'Login musi mieć maximum 35 znaków.',
+            'string.max': 'Nazwisko musi mieć maximum 35 znaków.',
         }),
 
     'g-recaptcha-response': Joi.string()
